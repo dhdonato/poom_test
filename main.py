@@ -1,7 +1,13 @@
+import os
 from flask import Flask, request, render_template_string
-from defusedxml.ElementTree import fromstring
 
 app = Flask(__name__)
+
+# Definindo o número da porta do Heroku
+port = int(os.environ.get("PORT", 5000))
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=port, debug=True)
 
 # Função recursiva para extrair a hierarquia das tags
 def extract_xml_hierarchy(element, parent_tag=''):
