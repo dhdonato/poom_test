@@ -1,65 +1,39 @@
-import requests
-from flask import Flask, request, Response, render_template_string
-from defusedxml.ElementTree import fromstring, tostring
-from datetime import datetime
-import logging
-
-# Configuração de log
-logging.basicConfig(level=logging.DEBUG)
+from flask import Flask, request, render_template_string
+from defusedxml.ElementTree import fromstring
 
 app = Flask(__name__)
 
-# Lista para armazenar os XMLs recebidos
-received_xmls = []
-
-# Função para enviar o XML para o endpoint de destino
-def send_cxml_to_app(destination_url, xml_data):
-    try:
-        headers = {"Content-Type": "application/xml"}
-        response = requests.post(destination_url, data=xml_data, headers=headers)
-        if response.status_code == 200:
-            logging.debug(f"XML enviado com sucesso para {destination_url}")
-        else:
-            logging.error(f"Falha ao enviar XML para {destination_url}. Status: {response.status_code}")
-        return response
-    except requests.RequestException as e:
-        logging.error(f"Erro ao enviar XML para o app de destino: {str(e)}")
-        return None
+# Função recursiva para extrair a hierarquia das tags
+def extract_xml_hierarchy(element, parent_tag=''):
+    fields = []
+    tag_name = element.tag
+    full_tag_name = f'{parent_tag}/{tag_name}' if parent_tag else tag_name
+    fields.append({
+        'name': full_tag_name,
+        'value': element.text.strip() if element.text else '',
+    })
+    
+    # Para cada subelemento, extraímos a hierarquia
+    for child in element:
+        fields.extend(extract_xml_hierarchy(child, full_tag_name))
+    
+    return fields
 
 @app.route("/", methods=["POST"])
-def receive_xml():
+def receive_and_parse_xml():
+    xml_data = request.data.decode('utf-8')
+
+    # Parseia o XML
     try:
-        # Obtém o XML do corpo da requisição
-        xml_data = request.data.decode('utf-8')
-
-        # Log do XML recebido (para depuração)
-        logging.debug(f"Recebido XML:\n{xml_data}")
-
-        # Parseia o XML para garantir que está bem formado
-        try:
-            root = fromstring(xml_data)
-        except Exception as e:
-            logging.error(f"Erro ao parsear XML: {str(e)}")
-            return Response(f"Erro: XML inválido. Detalhes: {str(e)}", status=400)
-
-        # Adiciona o XML na lista (com o timestamp para ordenação)
-        timestamp = datetime.now().isoformat()  # Exemplo de timestamp
-        received_xmls.append({"timestamp": timestamp, "xml": xml_data})
-
-        # Aqui você pode enviar o XML para o endpoint do app de destino
-        destination_url = "https://app-de-destino.com/endpoint"  # Substitua pela URL real do endpoint de destino
-        send_cxml_to_app(destination_url, xml_data)
-
-        # Retorna uma resposta de sucesso
-        return Response("XML recebido e enviado para o app de destino com sucesso", status=200)
+        root = fromstring(xml_data)
     except Exception as e:
-        logging.error(f"Erro inesperado: {str(e)}")
-        return Response(f"Erro inesperado: {str(e)}", status=500)
+        return f"Erro ao parsear XML: {str(e)}", 400
 
-@app.route("/received-xmls", methods=["GET"])
-def show_received_xmls():
-    # Cria o conteúdo HTML com os XMLs recebidos
-    response_html = """
+    # Extrai a hierarquia das tags
+    fields = extract_xml_hierarchy(root)
+
+    # Cria o formulário HTML com campos para cada tag
+    form_html = """
     <html>
     <head>
         <style>
@@ -70,40 +44,50 @@ def show_received_xmls():
             h1 {
                 color: #2E8B57;
             }
-            pre {
-                background-color: #f4f4f4;
-                padding: 15px;
-                border-radius: 5px;
-                font-size: 14px;
-                white-space: pre-wrap;
-                word-wrap: break-word;
-                max-width: 100%;
-                overflow: auto;
+            .field {
+                margin-bottom: 15px;
             }
-            hr {
-                margin: 20px 0;
+            label {
+                font-weight: bold;
+            }
+            input[type="text"] {
+                width: 100%;
+                padding: 8px;
+                margin-top: 5px;
+                font-size: 14px;
             }
         </style>
     </head>
     <body>
-        <h1>XMLs Recebidos</h1>
+        <h1>Campos do cXML Recebido</h1>
+        <form action="/submit" method="POST">
     """
 
-    if not received_xmls:
-        response_html += "<p>Não há XMLs recebidos.</p>"
+    # Para cada campo extraído, cria um campo no formulário
+    for field in fields:
+        form_html += f"""
+        <div class="field">
+            <label for="{field['name']}">{field['name']}</label>
+            <input type="text" id="{field['name']}" name="{field['name']}" value="{field['value']}">
+        </div>
+        """
 
-    for entry in received_xmls:
-        response_html += f"<h3>Timestamp: {entry['timestamp']}</h3>"
+    form_html += """
+        <button type="submit">Enviar</button>
+        </form>
+    </body>
+    </html>
+    """
 
-        # Exibindo o XML completo como está
-        response_html += "<h4>XML Recebido:</h4>"
-        response_html += f"<pre>{entry['xml']}</pre><hr>"
+    return render_template_string(form_html)
 
-    response_html += "</body></html>"
 
-    return render_template_string(response_html)
+@app.route("/submit", methods=["POST"])
+def submit_form():
+    # Aqui, você pode processar o que foi enviado no formulário
+    form_data = request.form.to_dict()
+    # Faça o que for necessário com os dados, como enviá-los a outro serviço ou salvar em um banco de dados
+    return f"Formulário enviado com sucesso. Dados recebidos: {form_data}"
 
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(debug=True)
