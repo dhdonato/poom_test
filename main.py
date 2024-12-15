@@ -46,11 +46,19 @@ def receive_xml():
         from_cred = root.find(".//From/Credential/Identity")
         to_cred = root.find(".//To/Credential/Identity")
         sender_cred = root.find(".//Sender/Credential/Identity")
+        
+        # Extração do domínio (se presente)
+        from_domain = root.find(".//From/Credential")
+        to_domain = root.find(".//To/Credential")
+        sender_domain = root.find(".//Sender/Credential")
 
         # Logando as credenciais e domínios
         logging.debug(f"From Identity: {from_cred.text if from_cred is not None else 'N/A'}")
         logging.debug(f"To Identity: {to_cred.text if to_cred is not None else 'N/A'}")
         logging.debug(f"Sender Identity: {sender_cred.text if sender_cred is not None else 'N/A'}")
+        logging.debug(f"From Domain: {from_domain.attrib.get('domain') if from_domain is not None else 'N/A'}")
+        logging.debug(f"To Domain: {to_domain.attrib.get('domain') if to_domain is not None else 'N/A'}")
+        logging.debug(f"Sender Domain: {sender_domain.attrib.get('domain') if sender_domain is not None else 'N/A'}")
 
         # Adiciona o XML na lista (com o timestamp para ordenação)
         timestamp = datetime.now().isoformat()  # Exemplo de timestamp
@@ -102,6 +110,18 @@ def show_received_xmls():
 
     for entry in received_xmls:
         response_html += f"<h3>Timestamp: {entry['timestamp']}</h3>"
+
+        # Exibindo o XML com as credenciais e domínios extraídos
+        response_html += "<h4>From Domain & Identity:</h4>"
+        response_html += f"<p><strong>Domain:</strong> {entry.get('From Domain', 'N/A')} <br> <strong>Identity:</strong> {entry.get('From Identity', 'N/A')}</p>"
+
+        response_html += "<h4>To Domain & Identity:</h4>"
+        response_html += f"<p><strong>Domain:</strong> {entry.get('To Domain', 'N/A')} <br> <strong>Identity:</strong> {entry.get('To Identity', 'N/A')}</p>"
+
+        response_html += "<h4>Sender Domain & Identity:</h4>"
+        response_html += f"<p><strong>Domain:</strong> {entry.get('Sender Domain', 'N/A')} <br> <strong>Identity:</strong> {entry.get('Sender Identity', 'N/A')}</p>"
+
+        # Exibe o XML completo para visualização
         response_html += f"<pre>{entry['xml']}</pre><hr>"
 
     response_html += "</body></html>"
