@@ -7,21 +7,17 @@ app = Flask(__name__)
 
 @app.route("/", methods=["POST"])
 def convert_json_to_cxml():
-    data = request.json  # JSON recebido do POST
+    if request.content_type != "application/json":
+        return Response(
+            "Erro: O cabeçalho Content-Type deve ser 'application/json'",
+            status=415
+        )
 
+    data = request.json
     if not data:
         return Response("Erro: JSON inválido ou ausente", status=400)
 
-    def format_timestamp(timestamp):
-        try:
-            datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-            return timestamp
-        except ValueError:
-            try:
-                dt = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
-                return dt.isoformat() + "Z"
-            except ValueError:
-                return ""
+    # Seu código para processar o JSON e gerar o XML aqui...
 
     timestamp_iso = format_timestamp(data.get("timestamp", ""))
 
