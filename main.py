@@ -33,7 +33,7 @@ def receive_xml():
     except ET.ParseError:
         return Response("Erro: XML inválido", status=400)
 
-@app.route("/mostrar", methods=["GET"])
+@app.route("/poomtest", methods=["GET"])
 def show_received_xmls():
     # Retorna os XMLs em ordem
     response_html = "<h1>XMLs Recebidos</h1>"
