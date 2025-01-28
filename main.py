@@ -1,15 +1,28 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+import logging
+
+# Configuração de logging para o Heroku
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
-@app.post("/xml")
-async def receive_xml(request: Request):
-    # Lê o conteúdo do XML enviado
-    xml_data = await request.body()
-    print("XML Recebido:", xml_data.decode("utf-8"))  # Exibe o XML no console
-    return JSONResponse(content={"message": "XML recebido com sucesso!"}, status_code=200)
+@app.post("/cxml")
+async def receive_cxml(request: Request):
+    try:
+        # Lê o conteúdo do cXML enviado
+        cxml_data = await request.body()
+        cxml_str = cxml_data.decode("utf-8")
+        
+        # Log do cXML recebido
+        logger.info(f"cXML Recebido: {cxml_str}")
+        
+        return JSONResponse(content={"message": "cXML recebido com sucesso!"}, status_code=200)
+    except Exception as e:
+        logger.error(f"Erro ao processar o cXML: {e}")
+        return JSONResponse(content={"error": "Erro ao processar o cXML"}, status_code=500)
 
 @app.get("/")
 def home():
-    return {"message": "Servidor FastAPI funcionando! Poste seu XML em /xml"}
+    return {"message": "Servidor FastAPI funcionando! Poste seu cXML em /cxml"}
